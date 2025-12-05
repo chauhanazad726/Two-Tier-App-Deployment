@@ -1,49 +1,50 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for, jsonify
-from flask_mysqldb import MySQL
+from flask import Flask, render_template, request, jsonify
+import MySQLdb
 
 app = Flask(__name__)
 
 # -----------------------------
-# MySQL CONFIG FOR YOUR SYSTEM
+# DOCKER CONFIG
 # -----------------------------
-app.config['MYSQL_HOST'] = 'localhost'
-app.config['MYSQL_USER'] = 'root'          # your MySQL username
-app.config['MYSQL_PASSWORD'] = 'azad'      # your MySQL password
-app.config['MYSQL_DB'] = 'mydb'            # YOUR DATABASE NAME
-
-# Initialize MySQL
-mysql = MySQL(app)
-
-# -----------------------------
-# Table create karne ki zaroorat nahi
-# Kyunki table 'messages' already exists
-# -----------------------------
-def init_db():
-    pass   # Do nothing
+def get_db():
+    return MySQLdb.connect(
+        host="mysql",        # DOCKER MySQL container name
+        user="root",
+        passwd="azad",
+        db="mydb"
+    )
 
 # -----------------------------
-# Routes
+# HOME PAGE
 # -----------------------------
 @app.route('/')
-def hello():
-    cur = mysql.connection.cursor()
-    cur.execute('SELECT message FROM messages')   # your table name
+def home():
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT message FROM messages")
     messages = cur.fetchall()
     cur.close()
+    db.close()
     return render_template('index.html', messages=messages)
 
+# -----------------------------
+# INSERT new message
+# -----------------------------
 @app.route('/submit', methods=['POST'])
 def submit():
-    new_message = request.form.get('new_message')
-    cur = mysql.connection.cursor()
-    cur.execute('INSERT INTO messages (message) VALUES (%s)', [new_message])
-    mysql.connection.commit()
+    msg = request.form.get('new_message')
+
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("INSERT INTO messages (message) VALUES (%s)", (msg,))
+    db.commit()
     cur.close()
-    return jsonify({'message': new_message})
+    db.close()
+
+    return jsonify({"message": msg})
 
 # -----------------------------
-# Run app
+# RUN SERVER
 # -----------------------------
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
